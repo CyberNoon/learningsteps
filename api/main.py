@@ -28,4 +28,3 @@ def root():
 
 # Log when the app starts
 logger.info("LearningSteps API started successfully")
-
