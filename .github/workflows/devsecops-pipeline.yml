@@ -1,0 +1,108 @@
+name: DevSecOps Build & Deploy
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-and-secret-scan:
+    name: Lint & Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog OSS (Secret Scan)
+        uses: trufflesecurity/trufflehog@main
+        continue-on-error: true
+        with:
+          path: ./
+          head: HEAD
+          extra_args: --debug --only-verified
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run Flake8 (Lint)
+        run: |
+          pip install flake8
+          flake8 api/ --max-line-length=120 --ignore=E501,F401 || true
+
+  iac-security:
+    name: IaC Misconfiguration Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          soft_fail: true
+          working_directory: infra-terraform
+
+  build-and-image-scan:
+    name: Build & Container Vulnerability Scan
+    needs: [lint-and-secret-scan, iac-security]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build local container
+        run: docker build -t learningsteps-api:${{ github.sha }} .
+
+      - name: Trivy Vulnerability Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: learningsteps-api:${{ github.sha }}
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Azure Login
+        if: github.ref == 'refs/heads/main'
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Push to ACR
+        if: github.ref == 'refs/heads/main'
+        run: |
+          az acr login --name ${{ secrets.ACR_NAME }}
+          docker tag learningsteps-api:${{ github.sha }} ${{ secrets.ACR_LOGIN_SERVER }}/learningsteps-api:${{ github.sha }}
+          docker tag learningsteps-api:${{ github.sha }} ${{ secrets.ACR_LOGIN_SERVER }}/learningsteps-api:latest
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/learningsteps-api:${{ github.sha }}
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/learningsteps-api:latest
+
+  deploy-to-aks:
+    name: Continuous Deployment
+    needs: [build-and-image-scan]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set AKS Context
+        uses: azure/aks-set-context@v3
+        with:
+          resource-group: ${{ secrets.AZURE_RG }}
+          cluster-name: ${{ secrets.AKS_CLUSTER_NAME }}
+
+      - name: Substitute Image & Apply Manifests
+        run: |
+          sed -i 's|<ACR_LOGIN_SERVER>|${{ secrets.ACR_LOGIN_SERVER }}|g' k8s-manifests/deployment.yaml
+          kubectl apply -f k8s-manifests/
+          kubectl set image deployment/learningsteps-api api=${{ secrets.ACR_LOGIN_SERVER }}/learningsteps-api:${{ github.sha }}
+          kubectl rollout status deployment/learningsteps-api --timeout=180s

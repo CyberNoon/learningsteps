@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: learningsteps-api
+  labels:
+    app: learningsteps
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: learningsteps
+  template:
+    metadata:
+      labels:
+        app: learningsteps
+    spec:
+      containers:
+      - name: api
+        image: <ACR_LOGIN_SERVER>/learningsteps-api:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: learningsteps-secrets
+              key: DATABASE_URL
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
+        readinessProbe:
+          httpGet:
+            path: /docs
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /docs
+            port: 8000
+          initialDelaySeconds: 20
+          periodSeconds: 20
