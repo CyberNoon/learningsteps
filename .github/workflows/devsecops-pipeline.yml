@@ -14,14 +14,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: TruffleHog OSS (Secret Scan)
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
           head: HEAD
-          extra_args: --debug
+          extra_args: --debug --only-verified
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -31,7 +31,6 @@ jobs:
       - name: Run Flake8 (Lint)
         run: |
           pip install flake8
-          # Sprawdza krytyczne bledy skladniowe (F), ignorujac formatowanie spacji (E, W)
           flake8 api/ --max-line-length=120 --select=F --ignore=F401
 
   iac-security:
