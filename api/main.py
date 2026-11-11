@@ -28,5 +28,4 @@ def root():
 
 # Log when the app starts
 logger.info("LearningSteps API started successfully")
-# Test secret leak
-AWS_SECRET_KEY = "AKIAIOSFODNN7EXAMPLE"
+
