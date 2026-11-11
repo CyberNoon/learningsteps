@@ -22,7 +22,7 @@ jobs:
         with:
           path: ./
           head: HEAD
-          extra_args: --debug --only-verified
+          extra_args: --debug
 
       - name: Set up Python
         uses: actions/setup-python@v5
