@@ -1,20 +1,4 @@
-terraform {
-  required_version = ">= 1.5.0"
-  required_providers {
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "~> 3.90"
-    }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.5"
-    }
-  }
-}
-
-provider "azurerm" {
-  features {}
-}
+# [USUNIETO STAD BLOKI terraform {} oraz provider "azurerm" {} - sa teraz w providers.tf]
 
 data "azurerm_client_config" "current" {}
 
@@ -90,13 +74,13 @@ resource "azurerm_role_assignment" "aks_acr" {
 
 # Azure Key Vault
 resource "azurerm_key_vault" "kv" {
-  name                       = "kv-ls-${random_string.suffix.result}"
-  location                   = azurerm_resource_group.rg.location
-  resource_group_name        = azurerm_resource_group.rg.name
-  tenant_id                  = data.azurerm_client_config.current.tenant_id
-  sku_name                   = "standard"
-  soft_delete_retention_days = 7
-  purge_protection_enabled   = false
+  name                        = "kv-ls-${random_string.suffix.result}"
+  location                    = azurerm_resource_group.rg.location
+  resource_group_name         = azurerm_resource_group.rg.name
+  tenant_id                   = data.azurerm_client_config.current.tenant_id
+  sku_name                    = "standard"
+  soft_delete_retention_days  = 7
+  purge_protection_enabled    = false
 
   access_policy {
     tenant_id = data.azurerm_client_config.current.tenant_id
@@ -109,9 +93,8 @@ resource "azurerm_key_vault" "kv" {
 
 # Generate cryptographically strong database credential
 resource "random_password" "db_password" {
-  length           = 16
-  special          = true
-  override_special = "!#$%&*()-_=+[]{}<>:?"
+  length  = 16
+  special = false
 }
 
 # Persist DB connection metadata inside Key Vault
