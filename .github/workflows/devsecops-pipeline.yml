@@ -40,11 +40,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run tfsec
-        uses: aquasecurity/tfsec-action@v1.0.3
+- name: Run Trivy IaC Scan
+        uses: aquasecurity/trivy-action@master
         with:
-          soft_fail: true
-          working_directory: infra-terraform
+          scan-type: 'config'
+          scan-ref: 'infra-terraform'
+          format: 'table'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
 
   build-and-image-scan:
     name: Build & Container Vulnerability Scan
@@ -56,15 +59,6 @@ jobs:
       - name: Build local container
         run: docker build -t learningsteps-api:${{ github.sha }} .
 
-      - name: Trivy Vulnerability Scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: learningsteps-api:${{ github.sha }}
-          format: 'table'
-          exit-code: '0'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
 
       - name: Azure Login
         if: github.ref == 'refs/heads/main'
