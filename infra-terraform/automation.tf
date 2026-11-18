@@ -17,23 +17,36 @@ resource "kubernetes_secret" "learningsteps_secrets" {
 resource "github_actions_secret" "acr_name" {
   repository      = "learningsteps"
   secret_name     = "ACR_NAME"
-  plaintext_value = azurerm_container_registry.acr.name
+  value = azurerm_container_registry.acr.name
 }
 
 resource "github_actions_secret" "acr_login_server" {
   repository      = "learningsteps"
   secret_name     = "ACR_LOGIN_SERVER"
-  plaintext_value = azurerm_container_registry.acr.login_server
+  value = azurerm_container_registry.acr.login_server
 }
 
 resource "github_actions_secret" "aks_cluster_name" {
   repository      = "learningsteps"
   secret_name     = "AKS_CLUSTER_NAME"
-  plaintext_value = azurerm_kubernetes_cluster.aks.name
+  value = azurerm_kubernetes_cluster.aks.name
 }
 
 resource "github_actions_secret" "azure_rg" {
   repository      = "learningsteps"
   secret_name     = "AZURE_RG"
-  plaintext_value = azurerm_resource_group.rg.name
+  value = azurerm_resource_group.rg.name
+}
+
+# 3. Eliminates manual 'az aks get-credentials' on the operator's workstation
+resource "null_resource" "update_kubeconfig" {
+  triggers = {
+    cluster_id = azurerm_kubernetes_cluster.aks.id
+  }
+
+  provisioner "local-exec" {
+    command = "az aks get-credentials --resource-group ${azurerm_resource_group.rg.name} --name ${azurerm_kubernetes_cluster.aks.name} --overwrite-existing"
+  }
+
+  depends_on = [azurerm_kubernetes_cluster.aks]
 }
