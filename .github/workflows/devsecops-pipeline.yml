@@ -38,9 +38,10 @@ jobs:
     name: IaC Misconfiguration Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-- name: Run Trivy IaC Scan
+      - name: Run Trivy IaC Scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'config'
@@ -54,11 +55,21 @@ jobs:
     needs: [lint-and-secret-scan, iac-security]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Build local container
         run: docker build -t learningsteps-api:${{ github.sha }} .
 
+      - name: Trivy Vulnerability Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: learningsteps-api:${{ github.sha }}
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
 
       - name: Azure Login
         if: github.ref == 'refs/heads/main'
@@ -81,7 +92,8 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Azure Login
         uses: azure/login@v2
